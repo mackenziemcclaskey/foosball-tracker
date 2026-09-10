@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Foosball Tracker</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>🏓 Foosball Tracker</h1>
+      <p class="subtitle">Balanced teams, Bayesian rankings, bragging rights.</p>
+    </header>
+
+    <main>
+      <section id="add-player-section">
+        <h2>Add Player</h2>
+        <form id="add-player-form">
+          <input type="text" id="new-player-name" placeholder="Name" required />
+          <button type="submit">Add</button>
+        </form>
+      </section>
+
+      <section id="leaderboard-section">
+        <h2>Leaderboard</h2>
+        <table id="leaderboard-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Player</th>
+              <th>Rating</th>
+              <th>W-L</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section id="start-match-section">
+        <h2>Start a Match</h2>
+        <p>Type 4 player names (existing players autocomplete; a new name is added as a player automatically):</p>
+        <div id="player-picker" class="player-inputs">
+          <input type="text" class="player-slot" list="players-datalist" placeholder="Player 1" />
+          <input type="text" class="player-slot" list="players-datalist" placeholder="Player 2" />
+          <input type="text" class="player-slot" list="players-datalist" placeholder="Player 3" />
+          <input type="text" class="player-slot" list="players-datalist" placeholder="Player 4" />
+        </div>
+        <datalist id="players-datalist"></datalist>
+        <button id="suggest-teams-btn">Suggest Teams</button>
+        <div id="team-suggestions"></div>
+      </section>
+
+      <section id="history-section">
+        <h2>Recent Matches</h2>
+        <ul id="match-history"></ul>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
