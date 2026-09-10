@@ -1,66 +1,71 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { Collection, MongoClient } from "mongodb";
 
 import type { Match, Player } from "./types.js";
 
-// Deliberately simple: a JSON file on disk, read/written whole on every
-// call. Fine for a handful of players and a game room's worth of matches.
-// If this ever needs concurrent writers, swap it for sqlite.
+// Persistence via MongoDB Atlas (free M0 tier — no credit card required),
+// so data survives regardless of where/whether the server process is
+// running. Same dbStore interface as the old flat-file version, so nothing
+// above this layer (server.ts, rating.ts) needs to know storage changed.
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, "..", "data");
-const DATA_FILE = path.join(DATA_DIR, "db.json");
-
-interface Db {
-  players: Player[];
-  matches: Match[];
+const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) {
+  throw new Error("MONGODB_URI environment variable is required");
 }
 
-function load(): Db {
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    const empty: Db = { players: [], matches: [] };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(empty, null, 2));
-    return empty;
+const DB_NAME = process.env.MONGODB_DB_NAME ?? "foosball";
+
+const client = new MongoClient(MONGODB_URI);
+let ready: Promise<{ players: Collection<Player>; matches: Collection<Match> }> | undefined;
+
+function getCollections() {
+  if (!ready) {
+    ready = client.connect().then(async () => {
+      const db = client.db(DB_NAME);
+      const players = db.collection<Player>("players");
+      const matches = db.collection<Match>("matches");
+      await players.createIndex({ id: 1 }, { unique: true });
+      await matches.createIndex({ timestamp: -1 });
+      return { players, matches };
+    });
   }
-  return JSON.parse(fs.readFileSync(DATA_FILE, "utf-8")) as Db;
+  return ready;
 }
 
-function save(db: Db): void {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2));
-}
+process.on("SIGTERM", async () => {
+  await client.close();
+  process.exit(0);
+});
 
 export const dbStore = {
-  getPlayers(): Player[] {
-    return load().players;
+  async getPlayers(): Promise<Player[]> {
+    const { players } = await getCollections();
+    return players.find({}, { projection: { _id: 0 } }).toArray();
   },
 
-  getPlayer(id: string): Player | undefined {
-    return load().players.find((p) => p.id === id);
+  async getPlayer(id: string): Promise<Player | undefined> {
+    const { players } = await getCollections();
+    const found = await players.findOne({ id }, { projection: { _id: 0 } });
+    return found ?? undefined;
   },
 
-  addPlayer(player: Player): Player {
-    const db = load();
-    db.players.push(player);
-    save(db);
+  async addPlayer(player: Player): Promise<Player> {
+    const { players } = await getCollections();
+    await players.insertOne({ ...player });
     return player;
   },
 
-  getMatches(limit = 50): Match[] {
-    const db = load();
-    return db.matches.slice(-limit).reverse();
+  async getMatches(limit = 50): Promise<Match[]> {
+    const { matches } = await getCollections();
+    return matches
+      .find({}, { projection: { _id: 0 } })
+      .sort({ timestamp: -1 })
+      .limit(limit)
+      .toArray();
   },
 
-  recordMatch(match: Match, updatedPlayers: Player[]): void {
-    const db = load();
-    db.matches.push(match);
-    for (const updated of updatedPlayers) {
-      const idx = db.players.findIndex((p) => p.id === updated.id);
-      if (idx >= 0) {
-        db.players[idx] = updated;
-      }
-    }
-    save(db);
+  async recordMatch(match: Match, updatedPlayers: Player[]): Promise<void> {
+    const { players, matches } = await getCollections();
+    await matches.insertOne({ ...match });
+    await Promise.all(updatedPlayers.map((p) => players.updateOne({ id: p.id }, { $set: { ...p } })));
   },
 };

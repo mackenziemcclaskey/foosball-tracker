@@ -12,26 +12,55 @@ for brand new players, and "who should play whom" gets smarter over time.
 
 This is the **interim web-app phase**. Plan:
 
-1. ✅ **Now:** standalone web app (this repo) — run it on a laptop, open it in
-   a browser near the table.
-2. **Next:** point a spare monitor/tablet's browser at this in kiosk mode as
-   an always-on leaderboard in the game room.
-3. **Later:** Raspberry Pi + touchscreen in the game room, wired up for
-   zero-friction "walk up, tap your name, record the result" use.
+1. ✅ **Now:** standalone web app, hosted on Render + MongoDB Atlas — reachable
+   from any browser, anywhere, without depending on anyone's laptop or the
+   office network.
+2. **Next:** point a spare monitor/tablet's browser at the hosted URL in kiosk
+   mode as an always-on leaderboard in the game room.
+3. **Later:** Raspberry Pi + touchscreen in the game room. The Pi is just a
+   kiosk browser pointed at the hosted app — it doesn't run a server or store
+   data itself, so office wifi reliability only affects the display, not
+   durability.
 
 A Slack app was considered as the primary interface but shelved for now due
 to internal security approval friction — this can be revisited later.
 
-## Quick start
+## Quick start (local development)
+
+Requires a `MONGODB_URI` — either a free [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register)
+M0 cluster (no credit card required, works fine for local dev too) or a local
+MongoDB via Docker: `docker run -d -p 27017:27017 --name foosball-mongo mongo`.
 
 ```bash
 npm install
+export MONGODB_URI="mongodb://localhost:27017"   # or your Atlas connection string
 npm run dev
 ```
 
 Then open http://localhost:4242.
 
-Data is stored in `data/db.json` (gitignored) — delete it to reset everything.
+## Deploying (Render + MongoDB Atlas)
+
+1. **MongoDB Atlas** (durable storage, free forever, no card):
+   - Sign up at https://www.mongodb.com/cloud/atlas/register
+   - Create an **M0 (free)** cluster
+   - Create a database user (username/password)
+   - Network Access → allow access from anywhere (`0.0.0.0/0`) — Render's free
+     tier doesn't have static egress IPs
+   - Copy the connection string (`mongodb+srv://...`)
+2. **Render** (hosting, free, no card):
+   - Sign up at https://render.com and connect your GitHub account
+   - New → Blueprint → point at this repo (picks up `render.yaml`
+     automatically), or New → Web Service manually with build command
+     `npm install` and start command `npm run start`
+   - Set the `MONGODB_URI` environment variable to your Atlas connection
+     string (kept out of the repo — `render.yaml` marks it `sync: false` so
+     Render prompts for it instead of committing it)
+   - Deploy — Render auto-redeploys on every push to `main`
+
+Note: Render's free tier spins the service down after ~15 minutes of
+inactivity, so the first request after a quiet spell takes a few extra
+seconds to wake back up. Everything after that is normal speed.
 
 ## API
 
@@ -59,7 +88,7 @@ Data is stored in `data/db.json` (gitignored) — delete it to reset everything.
 
 ## Notes
 
-- Deliberately no build step for the frontend (plain HTML/CSS/JS) and a flat
-  JSON file for storage — this is meant to be thrown away/replaced once the
-  Raspberry Pi kiosk exists, not maintained long-term as-is.
+- Deliberately no build step for the frontend (plain HTML/CSS/JS) — this is
+  meant to be a lightweight interim UI, not maintained long-term as-is once
+  the Raspberry Pi kiosk exists.
 - Not affiliated with or dependent on any Workday internal systems.
