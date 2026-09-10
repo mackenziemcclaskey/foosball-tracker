@@ -1,6 +1,7 @@
 import { constants as cryptoConstants } from "node:crypto";
+import { createSecureContext } from "node:tls";
 
-import { Collection, MongoClient, MongoClientOptions } from "mongodb";
+import { Collection, MongoClient } from "mongodb";
 
 import type { Match, Player } from "./types.js";
 
@@ -23,11 +24,12 @@ const client = new MongoClient(MONGODB_URI, {
   // "SSL routines:ssl3_read_bytes:tlsv1 alert internal error" / SSL alert 80.
   // This is MongoDB's own documented workaround:
   // https://www.mongodb.com/community/forums/t/mongoserverselectionerror-c83200000a000152-ssl-routinesunsafe-legacy-renegotiation-disabled/262568
-  // The driver/Node forward this through even though it's not a real
-  // tls.SecureContext, hence the type escape hatch.
-  secureContext: {
+  // Node's TLS internals require an actual tls.SecureContext here (a plain
+  // object throws ERR_TLS_INVALID_CONTEXT), so build one via createSecureContext
+  // rather than passing a bare { secureOptions } literal.
+  secureContext: createSecureContext({
     secureOptions: cryptoConstants.SSL_OP_LEGACY_SERVER_CONNECT,
-  } as unknown as MongoClientOptions["secureContext"],
+  }),
 });
 let ready: Promise<{ players: Collection<Player>; matches: Collection<Match> }> | undefined;
 
