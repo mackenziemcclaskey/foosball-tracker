@@ -1,4 +1,6 @@
-import { Collection, MongoClient } from "mongodb";
+import { constants as cryptoConstants } from "node:crypto";
+
+import { Collection, MongoClient, MongoClientOptions } from "mongodb";
 
 import type { Match, Player } from "./types.js";
 
@@ -14,7 +16,19 @@ if (!MONGODB_URI) {
 
 const DB_NAME = process.env.MONGODB_DB_NAME ?? "foosball";
 
-const client = new MongoClient(MONGODB_URI);
+const client = new MongoClient(MONGODB_URI, {
+  // Node 18+'s OpenSSL 3.0 disables legacy TLS renegotiation by default
+  // (CVE-2009-3555 mitigation), which Atlas's M0/shared-tier proxy still
+  // relies on — without this, the handshake fails with
+  // "SSL routines:ssl3_read_bytes:tlsv1 alert internal error" / SSL alert 80.
+  // This is MongoDB's own documented workaround:
+  // https://www.mongodb.com/community/forums/t/mongoserverselectionerror-c83200000a000152-ssl-routinesunsafe-legacy-renegotiation-disabled/262568
+  // The driver/Node forward this through even though it's not a real
+  // tls.SecureContext, hence the type escape hatch.
+  secureContext: {
+    secureOptions: cryptoConstants.SSL_OP_LEGACY_SERVER_CONNECT,
+  } as unknown as MongoClientOptions["secureContext"],
+});
 let ready: Promise<{ players: Collection<Player>; matches: Collection<Match> }> | undefined;
 
 function getCollections() {
