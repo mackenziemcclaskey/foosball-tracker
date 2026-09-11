@@ -88,6 +88,13 @@ seconds to wake back up. Everything after that is normal speed.
   by how close each is to a 50/50 win probability. The UI only surfaces the
   single most-balanced split, with no percentages shown — seeing "you have a
   38% chance" before you've even played tends to get in people's heads.
+- The suggestion is just a starting point, not final: names can be dragged
+  between teams to rearrange them (e.g. if two people specifically want to
+  play together), and whatever arrangement is on screen when a "won" button
+  is pressed is what actually gets logged and rated — not the original
+  suggestion. Dragging is built on Pointer Events rather than HTML5
+  drag-and-drop specifically so it works the same with a mouse or a finger
+  on a phone.
 - Recording a match calls `rate()` on the two teams, which updates all 4
   players' `mu`/`sigma` based on who won and the strength differential.
 

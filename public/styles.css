@@ -51,6 +51,31 @@ h2 {
   margin-top: 0;
 }
 
+@media (max-width: 480px) {
+  header {
+    padding: 16px;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+  }
+
+  main {
+    gap: 20px;
+    padding: 0 12px 32px;
+  }
+
+  section {
+    padding: 16px;
+  }
+
+  th,
+  td {
+    padding: 8px 4px;
+    font-size: 0.9rem;
+  }
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -70,7 +95,13 @@ form {
 
 input[type="text"] {
   flex: 1;
-  padding: 8px 12px;
+  /* Grid/flex items default to min-width: auto, which for a text input is
+     its content-based intrinsic width — that overrides the grid column
+     width and overflows the layout unless explicitly reset. */
+  min-width: 0;
+  /* 16px is the floor that keeps iOS Safari from auto-zooming in on focus. */
+  font-size: 16px;
+  padding: 12px;
   border-radius: 8px;
   border: 1px solid #334155;
   background: #0f172a;
@@ -78,7 +109,9 @@ input[type="text"] {
 }
 
 button {
-  padding: 8px 16px;
+  /* Comfortably clears the ~44px minimum touch-target guideline. */
+  padding: 14px 20px;
+  font-size: 1rem;
   border-radius: 8px;
   border: none;
   background: var(--accent);
@@ -98,23 +131,63 @@ button:hover {
   margin-bottom: 12px;
 }
 
-.split-card {
-  border: 1px solid var(--accent);
-  border-radius: 10px;
-  padding: 12px;
-  margin-top: 12px;
+.drag-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 8px 0;
 }
 
-.split-row {
+.teams-arena {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
+  margin-top: 4px;
 }
 
-.vs {
-  color: var(--muted);
+.team-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.team-slot {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 16px 8px;
   font-weight: 600;
+  text-align: center;
+  cursor: grab;
+  /* Without this, a touch-drag on a phone scrolls the page instead. */
+  touch-action: none;
+  user-select: none;
+  overflow-wrap: break-word;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.team-slot.dragging {
+  position: relative;
+  z-index: 10;
+  cursor: grabbing;
+  opacity: 0.85;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.team-slot.drop-target {
+  border-color: var(--accent);
+  background: #14532d;
+}
+
+.record-win-btn {
+  width: 100%;
+}
+
+.vs-divider {
+  color: var(--muted);
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 #match-history {

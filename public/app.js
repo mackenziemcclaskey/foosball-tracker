@@ -128,22 +128,105 @@ document.getElementById("suggest-teams-btn").addEventListener("click", async () 
   }
 });
 
+// The current on-screen team arrangement, as 4 slots: [team1, team1, team2,
+// team2]. Starts as the suggestion, but dragging swaps entries around, and
+// whatever is here when a "won" button is pressed is what actually gets
+// logged — so a suggestion is just a starting point, not the final word.
+let currentAssignment = null;
+
 function renderSuggestion(split) {
+  currentAssignment = [...split.team1, ...split.team2];
+  renderTeamsArena();
+}
+
+function renderTeamsArena() {
   const container = document.getElementById("team-suggestions");
-  const team1Names = split.team1.map((p) => p.name).join(" & ");
-  const team2Names = split.team2.map((p) => p.name).join(" & ");
+  const [a, b, c, d] = currentAssignment;
   container.innerHTML = `
-    <div class="split-card">
-      <div class="split-row">
-        <button data-winner="1">${team1Names} won</button>
-        <span class="vs">vs</span>
-        <button data-winner="2">${team2Names} won</button>
+    <p class="drag-hint">Drag a name to swap players between teams.</p>
+    <div class="teams-arena">
+      <div class="team-column">
+        <div class="team-slot" data-slot="0">${a.name}</div>
+        <div class="team-slot" data-slot="1">${b.name}</div>
+        <button class="record-win-btn" data-winner="1">This team won</button>
+      </div>
+      <div class="vs-divider">vs</div>
+      <div class="team-column">
+        <div class="team-slot" data-slot="2">${c.name}</div>
+        <div class="team-slot" data-slot="3">${d.name}</div>
+        <button class="record-win-btn" data-winner="2">This team won</button>
       </div>
     </div>
   `;
-  container.querySelectorAll("button").forEach((btn) => {
-    btn.addEventListener("click", () => recordMatch(split, Number(btn.dataset.winner)));
+
+  container.querySelectorAll(".team-slot").forEach(attachDragHandlers);
+  container.querySelectorAll(".record-win-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const winner = Number(btn.dataset.winner);
+      const split = {
+        team1: [currentAssignment[0], currentAssignment[1]],
+        team2: [currentAssignment[2], currentAssignment[3]],
+      };
+      recordMatch(split, winner);
+    });
   });
+}
+
+/**
+ * Lets a name chip be dragged onto another chip to swap the two players'
+ * slots. Built on Pointer Events (not HTML5 drag-and-drop) specifically so
+ * it works the same way with a mouse or a finger on a phone.
+ */
+let dragState = null;
+
+function attachDragHandlers(slotEl) {
+  slotEl.addEventListener("pointerdown", (e) => {
+    slotEl.setPointerCapture(e.pointerId);
+    slotEl.classList.add("dragging");
+    dragState = { fromSlot: Number(slotEl.dataset.slot), el: slotEl, startX: e.clientX, startY: e.clientY };
+  });
+
+  slotEl.addEventListener("pointermove", (e) => {
+    if (!dragState || dragState.el !== slotEl) return;
+    const dx = e.clientX - dragState.startX;
+    const dy = e.clientY - dragState.startY;
+    slotEl.style.transform = `translate(${dx}px, ${dy}px)`;
+    highlightDropTarget(e, slotEl);
+  });
+
+  slotEl.addEventListener("pointerup", (e) => endDrag(e, slotEl));
+  slotEl.addEventListener("pointercancel", (e) => endDrag(e, slotEl, true));
+}
+
+/** Finds whatever slot is under the pointer, ignoring the chip being dragged itself. */
+function slotUnderPointer(e, draggedEl) {
+  draggedEl.style.pointerEvents = "none";
+  const target = document.elementFromPoint(e.clientX, e.clientY)?.closest(".team-slot");
+  draggedEl.style.pointerEvents = "";
+  return target && target !== draggedEl ? target : null;
+}
+
+function highlightDropTarget(e, draggedEl) {
+  document.querySelectorAll(".team-slot.drop-target").forEach((el) => el.classList.remove("drop-target"));
+  slotUnderPointer(e, draggedEl)?.classList.add("drop-target");
+}
+
+function endDrag(e, slotEl, cancelled = false) {
+  if (!dragState || dragState.el !== slotEl) return;
+  slotEl.classList.remove("dragging");
+  slotEl.style.transform = "";
+  document.querySelectorAll(".team-slot.drop-target").forEach((el) => el.classList.remove("drop-target"));
+
+  const target = cancelled ? null : slotUnderPointer(e, slotEl);
+  if (target) {
+    const toSlot = Number(target.dataset.slot);
+    [currentAssignment[dragState.fromSlot], currentAssignment[toSlot]] = [
+      currentAssignment[toSlot],
+      currentAssignment[dragState.fromSlot],
+    ];
+    renderTeamsArena();
+  }
+  dragState = null;
 }
 
 async function recordMatch(split, winner) {
@@ -159,6 +242,7 @@ async function recordMatch(split, winner) {
     });
     document.querySelectorAll(".player-slot").forEach((input) => (input.value = ""));
     document.getElementById("team-suggestions").innerHTML = "";
+    currentAssignment = null;
     await loadPlayers();
     await loadMatches();
     document.querySelector(".player-slot").focus();
