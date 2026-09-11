@@ -47,7 +47,12 @@ Then open http://localhost:4242.
    - Create a database user (username/password)
    - Network Access → allow access from anywhere (`0.0.0.0/0`) — Render's free
      tier doesn't have static egress IPs
-   - Copy the connection string (`mongodb+srv://...`)
+   - Click **Connect → Drivers**, but use the **Standard Connection String**
+     (a direct host list) rather than the default SRV one. On Render, the
+     default `mongodb+srv://...` string failed the TLS handshake against
+     Atlas's shared-tier proxy (`SSL routines:ssl3_read_bytes:tlsv1 alert
+     internal error` / SSL alert 80) even with correct IP allowlisting and
+     credentials — switching to the standard string resolved it.
 2. **Render** (hosting, free, no card):
    - Sign up at https://render.com and connect your GitHub account
    - New → Blueprint → point at this repo (picks up `render.yaml`

@@ -1,6 +1,3 @@
-import { constants as cryptoConstants } from "node:crypto";
-import { createSecureContext } from "node:tls";
-
 import { Collection, MongoClient } from "mongodb";
 
 import type { Match, Player } from "./types.js";
@@ -9,6 +6,11 @@ import type { Match, Player } from "./types.js";
 // so data survives regardless of where/whether the server process is
 // running. Same dbStore interface as the old flat-file version, so nothing
 // above this layer (server.ts, rating.ts) needs to know storage changed.
+//
+// Use Atlas's "Standard Connection String" (a direct host list), not the
+// default SRV one — on Render, the SRV-based string failed the TLS handshake
+// with Atlas's shared-tier proxy ("SSL alert number 80"), even with correct
+// IP allowlisting and credentials. See README's Deploying section.
 
 const MONGODB_URI = process.env.MONGODB_URI;
 if (!MONGODB_URI) {
@@ -17,20 +19,7 @@ if (!MONGODB_URI) {
 
 const DB_NAME = process.env.MONGODB_DB_NAME ?? "foosball";
 
-const client = new MongoClient(MONGODB_URI, {
-  // Node 18+'s OpenSSL 3.0 disables legacy TLS renegotiation by default
-  // (CVE-2009-3555 mitigation), which Atlas's M0/shared-tier proxy still
-  // relies on — without this, the handshake fails with
-  // "SSL routines:ssl3_read_bytes:tlsv1 alert internal error" / SSL alert 80.
-  // This is MongoDB's own documented workaround:
-  // https://www.mongodb.com/community/forums/t/mongoserverselectionerror-c83200000a000152-ssl-routinesunsafe-legacy-renegotiation-disabled/262568
-  // Node's TLS internals require an actual tls.SecureContext here (a plain
-  // object throws ERR_TLS_INVALID_CONTEXT), so build one via createSecureContext
-  // rather than passing a bare { secureOptions } literal.
-  secureContext: createSecureContext({
-    secureOptions: cryptoConstants.SSL_OP_LEGACY_SERVER_CONNECT,
-  }),
-});
+const client = new MongoClient(MONGODB_URI);
 let ready: Promise<{ players: Collection<Player>; matches: Collection<Match> }> | undefined;
 
 function getCollections() {

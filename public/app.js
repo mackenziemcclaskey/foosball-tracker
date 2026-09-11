@@ -37,6 +37,33 @@ function renderPlayersDatalist() {
   });
 }
 
+/**
+ * Inline "ghost text" autocomplete: once what's typed narrows the roster
+ * down to exactly one matching name, fill in the rest as selected text so
+ * Tab (or Enter) accepts it, and continuing to type just overwrites it.
+ */
+function attachInlineAutocomplete(input) {
+  input.addEventListener("input", (e) => {
+    // Don't complete forward while deleting — otherwise backspacing just
+    // re-completes itself and you can never shorten the name.
+    if (e.inputType && e.inputType.startsWith("delete")) return;
+
+    const typed = input.value;
+    if (!typed) return;
+
+    const matches = state.players.filter((p) => p.name.toLowerCase().startsWith(typed.toLowerCase()));
+    if (matches.length !== 1) return;
+
+    const fullName = matches[0].name;
+    if (fullName.length <= typed.length) return;
+
+    input.value = typed + fullName.slice(typed.length);
+    input.setSelectionRange(typed.length, fullName.length);
+  });
+}
+
+document.querySelectorAll(".player-slot").forEach(attachInlineAutocomplete);
+
 /** Finds an existing player by case-insensitive name, or creates one. */
 async function resolvePlayerId(name) {
   const existing = state.players.find((p) => p.name.toLowerCase() === name.toLowerCase());
@@ -134,6 +161,7 @@ async function recordMatch(split, winner) {
     document.getElementById("team-suggestions").innerHTML = "";
     await loadPlayers();
     await loadMatches();
+    document.querySelector(".player-slot").focus();
   } catch (err) {
     alert(err.message);
   }
