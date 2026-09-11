@@ -67,24 +67,6 @@ async function loadMatches() {
   });
 }
 
-document.getElementById("add-player-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const input = document.getElementById("new-player-name");
-  const name = input.value.trim();
-  if (!name) return;
-  try {
-    await fetchJSON("/api/players", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    input.value = "";
-    await loadPlayers();
-  } catch (err) {
-    alert(err.message);
-  }
-});
-
 document.getElementById("suggest-teams-btn").addEventListener("click", async () => {
   const inputs = [...document.querySelectorAll(".player-slot")];
   const names = inputs.map((i) => i.value.trim());
